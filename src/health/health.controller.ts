@@ -1,107 +1,151 @@
-// // src/health/health.controller.ts
-// import { Controller, Get, Logger } from '@nestjs/common';
-// import { RedisService } from '../shared/redis.service';
-// import { EmailSender } from '../email/services/email-sender.service';
-// import { CircuitBreakerService } from '../email/services/circuit-breaker.service';
+// src/health/health.controller.ts
+import { Controller, Get, Logger } from '@nestjs/common';
+import { RedisService } from '../shared/redis.service';
+import { EmailSender } from '../email/services/email-sender.service';
+import {
+  CircuitBreakerService,
+  CircuitState,
+} from '../email/services/circuit-breaker.service';
 
-// @Controller('health')
-// export class HealthController {
-//   private readonly logger = new Logger(HealthController.name);
+interface HealthResponse {
+  status: 'healthy' | 'unhealthy';
+  timestamp: string;
+  service: string;
+  version?: string;
+  dependencies?: {
+    redis: {
+      status: 'up' | 'down';
+    };
+    email_transporter: {
+      status: 'up' | 'down';
+    };
+    rabbitmq: {
+      status: string;
+    };
+  };
+  circuit_breakers?: Array<{
+    name: string;
+    state: CircuitState;
+    failure_count: number;
+  }>;
+  uptime?: number;
+  memory?: {
+    used: number;
+    total: number;
+    unit: string;
+  };
+  error?: string;
+}
 
-//   constructor(
-//     private readonly redisService: RedisService,
-//     private readonly emailSender: EmailSender,
-//     private readonly circuitBreaker: CircuitBreakerService,
-//   ) {}
+interface ReadinessResponse {
+  status: 'ready' | 'not_ready';
+  message?: string;
+  error?: string;
+}
 
-//   @Get()
-//   async getHealth() {
-//     const timestamp = new Date().toISOString();
+interface LivenessResponse {
+  status: 'alive';
+  timestamp: string;
+}
 
-//     try {
-//       // Check Redis connection
-//       const redisHealthy = await this.redisService.healthCheck();
+@Controller('health')
+export class HealthController {
+  private readonly logger = new Logger(HealthController.name);
 
-//       // Check Email transporter
-//       const emailHealthy = await this.emailSender.verifyConnection();
+  constructor(
+    private readonly redisService: RedisService,
+    private readonly emailSender: EmailSender,
+    private readonly circuitBreaker: CircuitBreakerService,
+  ) {}
 
-//       // Get circuit breaker status
-//       const circuits = this.circuitBreaker.getAllCircuits();
-//       const circuitStatus = Array.from(circuits.entries()).map(
-//         ([name, circuit]) => ({
-//           name,
-//           state: circuit.state,
-//           failure_count: circuit.failure_count,
-//         }),
-//       );
+  @Get()
+  async getHealth(): Promise<HealthResponse> {
+    const timestamp = new Date().toISOString();
 
-//       const isHealthy = redisHealthy && emailHealthy;
+    try {
+      // Check Redis connection
+      const redisHealthy = await this.redisService.healthCheck();
 
-//       return {
-//         status: isHealthy ? 'healthy' : 'unhealthy',
-//         timestamp,
-//         service: 'email-service',
-//         version: process.env.npm_package_version || '1.0.0',
-//         dependencies: {
-//           redis: {
-//             status: redisHealthy ? 'up' : 'down',
-//           },
-//           email_transporter: {
-//             status: emailHealthy ? 'up' : 'down',
-//           },
-//           rabbitmq: {
-//             status: 'connected', // Assume connected if service is running
-//           },
-//         },
-//         circuit_breakers: circuitStatus,
-//         uptime: process.uptime(),
-//         memory: {
-//           used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
-//           total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024),
-//           unit: 'MB',
-//         },
-//       };
-//     } catch (error) {
-//       this.logger.error('Health check failed:', error);
-//       return {
-//         status: 'unhealthy',
-//         timestamp,
-//         service: 'email-service',
-//         error: error.message,
-//       };
-//     }
-//   }
+      // Check Email transporter
+      const emailHealthy = await this.emailSender.verifyConnection();
 
-//   @Get('ready')
-//   async getReadiness() {
-//     // Readiness check - is the service ready to accept traffic?
-//     try {
-//       const redisHealthy = await this.redisService.healthCheck();
-//       if (!redisHealthy) {
-//         return {
-//           status: 'not_ready',
-//           message: 'Redis connection not available',
-//         };
-//       }
+      // Get circuit breaker status
+      const circuits = this.circuitBreaker.getAllCircuits();
+      const circuitStatus = Array.from(circuits.entries()).map(
+        ([name, circuit]) => ({
+          name,
+          state: circuit.state,
+          failure_count: circuit.failure_count,
+        }),
+      );
 
-//       return {
-//         status: 'ready',
-//         message: 'Service is ready to accept traffic',
-//       };
-//     } catch (error) {
-//       return {
-//         status: 'not_ready',
-//         error: error.message,
-//       };
-//     }
-//   }
+      const isHealthy = redisHealthy && emailHealthy;
 
-//   @Get('live')
-//   getLiveness() {
-//     // Liveness check - is the service alive?
-//     return {
-//       status: 'alive',
-//       timestamp: new Date().toISOString(),
-//     };
-//   }
-// }
+      return {
+        status: isHealthy ? 'healthy' : 'unhealthy',
+        timestamp,
+        service: 'email-service',
+        version: process.env.npm_package_version || '1.0.0',
+        dependencies: {
+          redis: {
+            status: redisHealthy ? 'up' : 'down',
+          },
+          email_transporter: {
+            status: emailHealthy ? 'up' : 'down',
+          },
+          rabbitmq: {
+            status: 'connected', // Assume connected if service is running
+          },
+        },
+        circuit_breakers: circuitStatus,
+        uptime: process.uptime(),
+        memory: {
+          used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024),
+          total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024),
+          unit: 'MB',
+        },
+      };
+    } catch (error) {
+      this.logger.error('Health check failed:', error);
+      return {
+        status: 'unhealthy',
+        timestamp,
+        service: 'email-service',
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
+  }
+
+  @Get('ready')
+  async getReadiness(): Promise<ReadinessResponse> {
+    // Readiness check - is the service ready to accept traffic?
+    try {
+      const redisHealthy = await this.redisService.healthCheck();
+      if (!redisHealthy) {
+        return {
+          status: 'not_ready',
+          message: 'Redis connection not available',
+        };
+      }
+
+      return {
+        status: 'ready',
+        message: 'Service is ready to accept traffic',
+      };
+    } catch (error) {
+      return {
+        status: 'not_ready',
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
+  }
+
+  @Get('live')
+  getLiveness(): LivenessResponse {
+    // Liveness check - is the service alive?
+    return {
+      status: 'alive',
+      timestamp: new Date().toISOString(),
+    };
+  }
+}

@@ -1,7 +1,7 @@
 // src/email/services/circuit-breaker.service.ts
 import { Injectable, Logger } from '@nestjs/common';
 
-enum CircuitState {
+export enum CircuitState {
   CLOSED = 'CLOSED', // Normal operation
   OPEN = 'OPEN', // Failing, reject requests
   HALF_OPEN = 'HALF_OPEN', // Testing if service recovered
