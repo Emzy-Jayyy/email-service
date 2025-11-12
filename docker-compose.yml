@@ -1,0 +1,110 @@
+# services:
+#   email-service:
+#     build:
+#       context: .
+#       dockerfile: Dockerfile
+#     container_name: email-service
+#     ports:
+#       - "3002:3002"
+#     environment:
+#       - NODE_ENV=development
+#       - PORT=3002
+#       - RABBITMQ_URL=amqp://admin:admin123@rabbitmq:5672
+#       - REDIS_URL=redis://redis:6379
+#       - USER_SERVICE_URL=http://user-service:3001
+#       - TEMPLATE_SERVICE_URL=http://template-service:3004
+#       - EMAIL_PROVIDER=${EMAIL_PROVIDER}
+#       - SMTP_HOST=${SMTP_HOST}
+#       - SMTP_PORT=${SMTP_PORT}
+#       - SMTP_USER=${SMTP_USER}
+#       - SMTP_PASSWORD=${SMTP_PASSWORD}
+#       - EMAIL_FROM=${EMAIL_FROM}
+#     depends_on:
+#       rabbitmq:
+#         condition: service_healthy
+#       redis:
+#         condition: service_healthy
+#     networks:
+#       - notification-network
+#     restart: unless-stopped
+#     volumes:
+#       - ./logs:/app/logs
+
+#   rabbitmq:
+#     image: rabbitmq:3.12-management-alpine
+#     container_name: rabbitmq
+#     ports:
+#       - "5672:5672"
+#       - "15672:15672"
+#     environment:
+#       - RABBITMQ_DEFAULT_USER=admin
+#       - RABBITMQ_DEFAULT_PASS=admin123
+#     healthcheck:
+#       test: ["CMD", "rabbitmq-diagnostics", "ping"]
+#       interval: 10s
+#       timeout: 5s
+#       retries: 5
+#     networks:
+#       - notification-network
+#     volumes:
+#       - rabbitmq-data:/var/lib/rabbitmq
+
+#   redis:
+#     image: redis:7-alpine
+#     container_name: redis
+#     ports:
+#       - "6379:6379"
+#     command: redis-server --appendonly yes
+#     healthcheck:
+#       test: ["CMD", "redis-cli", "ping"]
+#       interval: 10s
+#       timeout: 3s
+#       retries: 5
+#     networks:
+#       - notification-network
+#     volumes:
+#       - redis-data:/data
+
+# networks:
+#   notification-network:
+#     driver: bridge
+
+# volumes:
+#   rabbitmq-data:
+#   redis-data:
+
+services:
+  rabbitmq:
+    image: rabbitmq:3.12-management-alpine
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: admin123
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    volumes:
+      - redis-data:/data
+
+volumes:
+  rabbitmq-data:
+  redis-data:
