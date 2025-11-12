@@ -1,98 +1,317 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Email Service - Distributed Notification System
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+A robust, scalable email notification microservice built with NestJS and TypeScript. Part of a distributed notification system that processes email notifications asynchronously through RabbitMQ message queues.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## 🎯 Features
 
-## Description
+- **Asynchronous Message Processing**: Consumes messages from RabbitMQ email queue
+- **Circuit Breaker Pattern**: Prevents cascading failures when SMTP services are down
+- **Exponential Backoff Retry**: Automatic retry with exponential backoff for failed emails
+- **Idempotency**: Prevents duplicate email sends using unique request IDs
+- **Template Rendering**: Dynamic email template rendering with variable substitution
+- **Multiple Email Providers**: Support for SMTP, SendGrid, Mailgun, and Gmail
+- **Redis Caching**: Caches user data and templates for improved performance
+- **Health Checks**: Comprehensive health, readiness, and liveness endpoints
+- **Dead Letter Queue**: Failed messages automatically moved to DLQ after max retries
+- **Horizontal Scalability**: Stateless design allows multiple instances
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## 🏗️ Architecture
 
-## Project setup
-
-```bash
-$ npm install
+```
+RabbitMQ (email.queue)
+        ↓
+Email Service Consumer
+        ↓
+1. Check Idempotency (Redis)
+2. Fetch User Data (User Service + Cache)
+3. Fetch Template (Template Service + Cache)
+4. Render Email Template
+5. Send Email (with Circuit Breaker)
+6. Update Status (Status Queue)
+7. Mark as Processed (Redis)
 ```
 
-## Compile and run the project
+## 📋 Prerequisites
+
+- Node.js 20+
+- Docker & Docker Compose
+- RabbitMQ 3.12+
+- Redis 7+
+- SMTP credentials or email service API keys
+
+## 🚀 Quick Start
+
+### 1. Clone and Install
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+cd services/email-service
+npm install
 ```
 
-## Run tests
+### 2. Configure Environment
+
+Copy `.env.example` to `.env` and configure:
 
 ```bash
-# unit tests
-$ npm run test
+# Service
+PORT=3002
+NODE_ENV=development
 
-# e2e tests
-$ npm run test:e2e
+# RabbitMQ
+RABBITMQ_URL=amqp://localhost:5672
 
-# test coverage
-$ npm run test:cov
+# Redis
+REDIS_URL=redis://localhost:6379
+
+# Email Provider (smtp, sendgrid, mailgun, gmail)
+EMAIL_PROVIDER=smtp
+EMAIL_FROM=noreply@notifications.com
+
+# SMTP Configuration
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASSWORD=your-app-password
+
+# Service URLs
+USER_SERVICE_URL=http://localhost:3001
+TEMPLATE_SERVICE_URL=http://localhost:3004
 ```
 
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+### 3. Run with Docker Compose
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+docker-compose up -d
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+### 4. Run in Development Mode
 
-## Resources
+```bash
+npm run start:dev
+```
 
-Check out a few resources that may come in handy when working with NestJS:
+## 📡 API Endpoints
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+### Health Check
+```
+GET /health
+```
 
-## Support
+**Response:**
+```json
+{
+  "status": "healthy",
+  "timestamp": "2025-11-10T12:00:00Z",
+  "service": "email-service",
+  "dependencies": {
+    "redis": { "status": "up" },
+    "email_transporter": { "status": "up" },
+    "rabbitmq": { "status": "connected" }
+  },
+  "circuit_breakers": [
+    {
+      "name": "email_send",
+      "state": "CLOSED",
+      "failure_count": 0
+    }
+  ]
+}
+```
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+### Readiness Check
+```
+GET /health/ready
+```
 
-## Stay in touch
+### Liveness Check
+```
+GET /health/live
+```
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+## 📨 Message Format
 
-## License
+The service consumes messages from the `email.queue` with this format:
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+```typescript
+{
+  notification_type: "email",
+  user_id: "550e8400-e29b-41d4-a716-446655440000",
+  template_code: "welcome_email",
+  variables: {
+    name: "John Doe",
+    link: "https://example.com/verify",
+    meta: {}
+  },
+  request_id: "unique-request-id-123",
+  priority: 1,
+  metadata: {}
+}
+```
+
+## 🔄 Retry Strategy
+
+The service implements exponential backoff for failed deliveries:
+
+- **Max Attempts**: 3
+- **Initial Delay**: 1 second
+- **Backoff Multiplier**: 2x
+- **Max Delay**: 5 minutes
+- **Jitter**: ±20% random variation
+
+**Retry Schedule:**
+- 1st retry: ~1 second
+- 2nd retry: ~2 seconds
+- 3rd retry: ~4 seconds
+- After 3 failures → Dead Letter Queue
+
+## 🛡️ Circuit Breaker
+
+Protects against cascading failures when email providers are down:
+
+- **Failure Threshold**: 5 consecutive failures
+- **Success Threshold**: 2 successes to close circuit
+- **Timeout**: 60 seconds before testing recovery
+- **States**: CLOSED (normal) → OPEN (failing) → HALF_OPEN (testing)
+
+## 🎯 Idempotency
+
+Prevents duplicate email sends:
+
+1. Check Redis for `processed:{request_id}`
+2. If exists, return success immediately
+3. If not, process and mark as processed
+4. Cache for 24 hours
+
+## 📊 Monitoring
+
+### Key Metrics to Track
+
+- Message processing rate
+- Email delivery success rate
+- Circuit breaker state changes
+- Retry attempts per message
+- Queue depth
+- Service response times
+- Error rates by type
+
+### Logging
+
+All logs include correlation IDs for request tracing:
+
+```
+[request-id-123] Starting email processing
+[request-id-123] User fetched from cache
+[request-id-123] Template rendered successfully
+[request-id-123] ✅ Email delivered in 245ms
+```
+
+## 🧪 Testing
+
+```bash
+# Run unit tests
+npm test
+
+# Run tests with coverage
+npm run test:cov
+
+# Run tests in watch mode
+npm run test:watch
+```
+
+## 📦 Docker Deployment
+
+### Build Image
+
+```bash
+docker build -t email-service:latest .
+```
+
+### Run Container
+
+```bash
+docker run -d \
+  --name email-service \
+  -p 3002:3002 \
+  -e RABBITMQ_URL=amqp://rabbitmq:5672 \
+  -e REDIS_URL=redis://redis:6379 \
+  email-service:latest
+```
+
+## 🔧 Configuration
+
+### Email Providers
+
+#### SMTP
+```env
+EMAIL_PROVIDER=smtp
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASSWORD=your-app-password
+```
+
+#### SendGrid
+```env
+EMAIL_PROVIDER=sendgrid
+SENDGRID_API_KEY=your-api-key
+```
+
+#### Mailgun
+```env
+EMAIL_PROVIDER=mailgun
+MAILGUN_USERNAME=your-username
+MAILGUN_PASSWORD=your-password
+```
+
+#### Gmail
+```env
+EMAIL_PROVIDER=gmail
+GMAIL_USER=your-gmail@gmail.com
+GMAIL_APP_PASSWORD=your-app-password
+```
+
+## 📈 Scaling
+
+The service is stateless and horizontally scalable:
+
+```bash
+# Run multiple instances
+docker-compose up -d --scale email-service=3
+```
+
+Each instance will consume from the same queue with load balancing.
+
+## 🐛 Troubleshooting
+
+### Service not processing messages
+
+1. Check RabbitMQ connection: `docker logs email-service | grep RabbitMQ`
+2. Verify queue exists: Check RabbitMQ Management UI (http://localhost:15672)
+3. Check circuit breaker state: `GET /health`
+
+### Emails not being sent
+
+1. Verify SMTP credentials
+2. Check email provider logs
+3. Review circuit breaker state
+4. Check dead letter queue for failed messages
+
+### High memory usage
+
+1. Review Redis cache TTL settings
+2. Check for memory leaks: `GET /health` (memory section)
+3. Restart service if needed
+
+## 📝 License
+
+MIT
+
+## 👥 Team
+
+Developed as part of Stage 4 Backend Task - Distributed Notification System
+
+---
+
+**Service Status**: Production Ready ✅  
+**Version**: 1.0.0  
+**Last Updated**: November 2025
