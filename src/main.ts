@@ -16,8 +16,8 @@ async function bootstrap() {
       queueOptions: {
         durable: true,
         arguments: {
-          'x-dead-letter-exchange': 'notifications.dlx',
-          'x-dead-letter-routing-key': 'failed.email',
+          'x-dead-letter-exchange': 'notifications.direct',
+          'x-dead-letter-routing-key': 'failed.queue',
         },
       },
       prefetchCount: parseInt(process.env.PREFETCH_COUNT || '10'),
